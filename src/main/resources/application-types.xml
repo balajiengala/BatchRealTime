@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="orderDetails" format="csv">
+      <types:shape format="weave" example="examples/Order-Small.CSV"><![CDATA[%dw 2.0
+
+type orderDetails = Array<{|  SNo: String,   OrderID: String,   SKU: String,   Qty: String,   Price: String,   CustomerID: String|}> {"isQuotedString": "false",
+"header": "true",
+"headerLineNumber": "0",
+"separator": ","}
+
+]]></types:shape>
+      <types:properties>
+        <types:property name="headerLineNumber" value="0"/>
+        <types:property name="header" value="true"/>
+        <types:property name="isQuotedString" value="false"/>
+        <types:property name="separator" value=","/>
+      </types:properties>
+    </types:type>
+    <types:type name="insertDB" format="json">
+      <types:shape format="weave" example="examples/dbinsert.json"><![CDATA[%dw 2.0
+
+type insertDB = Array<{|  orderId: String,   OrderQuantity: String|}> {"example": "[{\\\"orderId\\\":\\\"\\\",\\\"OrderQuantity\\\":\\\"\\\"},{\\\"orderId\\\":\\\"\\\",\\\"OrderQuantity\\\":\\\"\\\"}]"}
+
+]]></types:shape>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#3844b96b-ff28-40e0-9159-77a68f210204">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="orderDetails"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#cf137806-a045-4f99-b367-0f6f51482bae">
+    <types:processor-declaration>
+      <types:output-event>
+        <types:message>
+          <types:payload type="insertDB"/>
+        </types:message>
+      </types:output-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

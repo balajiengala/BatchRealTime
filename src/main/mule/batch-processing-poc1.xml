@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="2151e04c-1c97-46d0-a51c-9f33262eb6ed" />
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="c285a238-9303-4033-8626-645ca7631f68" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="36313048-d03c-46fa-abdc-0eed1e9b20d1" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Chittoor100%ilove" />
+	</db:config>
+	<flow name="batch-processing-poc1Flow1" doc:id="4993cb33-3e50-42c1-911e-165b7593333d" >
+		<http:listener doc:name="Listener" doc:id="87f75138-a63d-4de1-b7ff-b5bf96fdfc2f" config-ref="HTTP_Listener_config" path="/batch"/>
+		<file:read doc:name="Read" doc:id="6d8d33c2-e1d6-4fad-98c9-6821b16240b9" config-ref="File_Config" path="D:\SamplePractice-Files\Input\Order-Small.CSV" outputMimeType="application/csv"/>
+		<ee:transform doc:name="Transform Message" doc:id="3844b96b-ff28-40e0-9159-77a68f210204" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+(payload groupBy $.OrderID) pluck ((value, key, index) ->value)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="batch-processing-poc1Batch_Job" doc:id="988ec7f8-2e05-4b4d-8bc0-9947534b189b" blockSize="5" maxFailedRecords="-1">
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="76c7d706-11e0-4559-b27a-8a52da7d2ab2" >
+					<logger level="INFO" doc:name="Logger" doc:id="eb92da11-8862-485d-9dd5-f0b9c716331e" message="&amp;&amp;&amp;&amp;&amp;&amp;&amp;&amp;&amp;&amp;&amp;Log inside the Batch processing::::::::::::#[payload]"/>
+					<ee:transform doc:name="Transform Message" doc:id="58da866e-81ca-4ce4-b62f-638421ce4961" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"orderId" : payload[0].OrderID,
+	"OrderQuantity": sizeOf(payload),
+	"QTY": payload[0].Qty/2
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="94febdc7-279b-4ca2-bdf3-66ce2d580fdd" size="2">
+						<ee:transform doc:name="Transform Message" doc:id="cf137806-a045-4f99-b367-0f6f51482bae" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+(payload map ((item, index) -> read(item, "application/json" ))) map {
+	"itemId" : $.orderId,
+	"itemQuantity": $.OrderQuantity
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Bulk insert" doc:id="305e1656-ca58-4768-980a-05d04ca4e6ee" config-ref="Database_Config">
+							<db:sql ><![CDATA[insert into esb_schema.orders values (:itemId, :itemQuantity)]]></db:sql>
+						</db:bulk-insert>
+						<logger level="INFO" doc:name="Logger" doc:id="01e5956a-cf5b-4ee8-972e-643dfc47d52c" message='#["Batch Aggregator logger:::The Size is" ++ sizeOf(payload)]'/>
+					</batch:aggregator>
+				</batch:step>
+				<batch:step name="Batch_Step1" doc:id="0170c446-d121-430f-bb7a-e6ed92ab2f84" acceptPolicy="ONLY_FAILURES">
+					<logger level="INFO" doc:name="Logger" doc:id="60d03aeb-f669-4884-8408-6b83c5c8be77" message="&amp;&amp;&amp;&amp;&amp;&amp;&amp;&amp;&amp;&amp;#[payload]"/>
+					<set-variable value="failures.json" doc:name="Set Variable" doc:id="ed6e3451-8dcb-45e2-9621-1c356ff63e2a" variableName="filename"/>
+					<file:write doc:name="Write" doc:id="acda6a01-1343-4354-9641-691cc307de54" config-ref="File_Config" path='#[D:/SamplePractice-Files/Failed-Records/vars.filename]'/>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="a2608c53-4280-4880-8c61-e46771d229e9" message="On Complete Phase Logger::::#[payload]"/>
+			</batch:on-complete>
+		</batch:job>
+		<logger level="INFO" doc:name="Logger" doc:id="3e917c61-ffde-4008-9f88-957ea2d3a792" message="Payload After the Batch Job is #[payload]"/>
+	</flow>
+</mule>
