@@ -56,7 +56,7 @@ output application/json
 						<db:bulk-insert doc:name="Bulk insert" doc:id="305e1656-ca58-4768-980a-05d04ca4e6ee" config-ref="Database_Config">
 							<db:sql ><![CDATA[insert into esb_schema.orders values (:itemId, :itemQuantity)]]></db:sql>
 						</db:bulk-insert>
-						<logger level="INFO" doc:name="Logger" doc:id="01e5956a-cf5b-4ee8-972e-643dfc47d52c" message='#["Batch Aggregator logger:::The Size is" ++ sizeOf(payload)]'/>
+						<logger level="INFO" doc:name="Logger" doc:id="01e5956a-cf5b-4ee8-972e-643dfc47d52c" message='#["Batch Aggregator logger in batch API:::The Size is" ++ sizeOf(payload)]'/>
 					</batch:aggregator>
 				</batch:step>
 				<batch:step name="Batch_Step1" doc:id="0170c446-d121-430f-bb7a-e6ed92ab2f84" acceptPolicy="ONLY_FAILURES">
